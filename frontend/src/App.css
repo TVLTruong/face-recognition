@@ -1,0 +1,90 @@
+.App {
+  text-align: center;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.App-header {
+  background-color: #282c34;
+  padding: 20px;
+  color: white;
+  margin-bottom: 20px;
+}
+
+.App-header h1 {
+  margin: 0;
+  font-size: 24px;
+  margin-bottom: 15px;
+}
+
+.mode-switch {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  margin-top: 10px;
+}
+
+.mode-button {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: bold;
+  transition: all 0.3s;
+  background-color: #4a4a4a;
+  color: white;
+}
+
+.mode-button:hover {
+  background-color: #666;
+}
+
+.mode-button.active {
+  background-color: #2196f3;
+}
+
+.mode-button.active:hover {
+  background-color: #1976d2;
+}
+
+.App-main {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 20px;
+}
+
+.webcam-container,
+.results-container {
+  width: 100%;
+  margin-bottom: 20px;
+}
+
+.realtime-container {
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+@media (min-width: 768px) {
+  .App-main {
+    flex-direction: row;
+    align-items: flex-start;
+  }
+
+  .webcam-container,
+  .results-container {
+    width: 50%;
+    padding: 0 10px;
+  }
+}
+
+.error-message {
+  background-color: #ffeeee;
+  color: #d32f2f;
+  padding: 10px;
+  border-radius: 4px;
+  margin-top: 20px;
+  border: 1px solid #f5c6cb;
+}

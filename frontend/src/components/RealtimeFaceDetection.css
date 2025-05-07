@@ -1,0 +1,85 @@
+.realtime-detection {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+.video-container {
+    width: 100%;
+    aspect-ratio: 4/3;
+    position: relative;
+    border: 2px solid #ddd;
+    border-radius: 8px;
+    overflow: hidden;
+    background-color: #f0f0f0;
+    max-width: 640px;
+    margin: 0 auto;
+}
+
+video {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+    background-color: #333;
+}
+
+video.active {
+    background-color: transparent;
+}
+
+.detection-canvas {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+}
+
+.controls {
+    margin-top: 15px;
+    display: flex;
+    gap: 10px;
+}
+
+.webcam-button {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: bold;
+    transition: background-color 0.3s;
+}
+
+.webcam-button.start {
+    background-color: #4caf50;
+    color: white;
+}
+
+.webcam-button.start:hover {
+    background-color: #388e3c;
+}
+
+.webcam-button.stop {
+    background-color: #f44336;
+    color: white;
+}
+
+.webcam-button.stop:hover {
+    background-color: #d32f2f;
+}
+
+.error-message {
+    margin-top: 15px;
+    padding: 10px;
+    background-color: #ffebee;
+    color: #c62828;
+    border-radius: 4px;
+    border: 1px solid #ffcdd2;
+    width: 100%;
+    text-align: center;
+}
