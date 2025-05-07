@@ -40,6 +40,14 @@ const RealtimeFaceDetection = () => {
     const [isWebcamActive, setIsWebcamActive] = useState(false);
     const [error, setError] = useState(null);
     const [isProcessing, setIsProcessing] = useState(false);
+    const [apiErrorCount, setApiErrorCount] = useState(0); // Đếm số lỗi API
+    const maxRetries = 3; // Số lần thử lại tối đa trước khi hiển thị lỗi
+    
+    // Thêm trạng thái để cấu hình API
+    const [apiConfig, setApiConfig] = useState({
+        url: process.env.REACT_APP_API_URL || 'http://localhost:8000',
+        endpoint: '/detect-face-realtime'
+    });
 
     // Thêm refs để lưu trữ kết quả nhận diện
     const previousFacesRef = useRef([]);
@@ -47,6 +55,10 @@ const RealtimeFaceDetection = () => {
     const smoothingFactor = 0.8; // Hệ số làm mượt
     const maxBoxDistance = 100; // Khoảng cách tối đa giữa các bounding box
     const faceHistoryRef = useRef(new Map()); // Lưu lịch sử các khuôn mặt
+
+    // Cấu hình timeout và timeout cho API request
+    const apiTimeout = 10000; // 10 giây timeout
+    const apiRetryDelay = 1000; // Delay 1 giây trước khi thử lại
 
     const startWebcam = useCallback(async () => {
         try {
@@ -58,6 +70,7 @@ const RealtimeFaceDetection = () => {
                 setStream(mediaStream);
                 setIsWebcamActive(true);
                 setError(null);
+                setApiErrorCount(0); // Reset bộ đếm lỗi
                 faceHistoryRef.current.clear(); // Xóa lịch sử khi bắt đầu mới
             }
         } catch (err) {
@@ -84,6 +97,12 @@ const RealtimeFaceDetection = () => {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
+        // Kiểm tra kết quả có cấu trúc đúng không
+        if (!results.faces || !Array.isArray(results.faces)) {
+            console.warn("Kết quả không hợp lệ:", results);
+            return;
+        }
+
         const currentFaces = results.faces;
         const now = Date.now();
         const timeSinceLastUpdate = now - lastUpdateTimeRef.current;
@@ -92,6 +111,12 @@ const RealtimeFaceDetection = () => {
         if (previousFacesRef.current.length > 0 && timeSinceLastUpdate < 500) {
             // Tìm và cập nhật các khuôn mặt tương ứng
             currentFaces.forEach(currentFace => {
+                // Kiểm tra cấu trúc của face
+                if (!currentFace.bbox || !Array.isArray(currentFace.bbox) || currentFace.bbox.length !== 4) {
+                    console.warn("Khuôn mặt không hợp lệ:", currentFace);
+                    return;
+                }
+
                 const matchingFace = findMatchingFace(currentFace, previousFacesRef.current);
 
                 if (matchingFace) {
@@ -101,7 +126,7 @@ const RealtimeFaceDetection = () => {
                         currentFace.confidence * (1 - smoothingFactor);
 
                     // Cập nhật lịch sử khuôn mặt
-                    const faceId = `${currentFace.name}_${matchingFace.bbox.join('_')}`;
+                    const faceId = `${currentFace.name || 'unknown'}_${matchingFace.bbox.join('_')}`;
                     faceHistoryRef.current.set(faceId, {
                         ...currentFace,
                         lastSeen: now,
@@ -121,6 +146,8 @@ const RealtimeFaceDetection = () => {
 
         // Vẽ các bounding box
         currentFaces.forEach(face => {
+            if (!face.bbox || face.bbox.length !== 4) return;
+
             const [x1, y1, x2, y2] = face.bbox;
             ctx.strokeStyle = face.confidence > 0.7 ? '#00ff00' :
                 face.confidence > 0.5 ? '#ffff00' : '#ff0000';
@@ -131,47 +158,88 @@ const RealtimeFaceDetection = () => {
             ctx.fillRect(x1, y1 - 40, x2 - x1, 40);
             ctx.font = '16px Arial';
             ctx.fillStyle = 'white';
-            ctx.fillText(`${face.name} (${(face.confidence * 100).toFixed(1)}%)`, x1 + 5, y1 - 22);
+            ctx.fillText(`${face.name || 'Unknown'} (${((face.confidence || 0) * 100).toFixed(1)}%)`, x1 + 5, y1 - 22);
         });
 
         // Lưu kết quả hiện tại
         previousFacesRef.current = currentFaces;
         lastUpdateTimeRef.current = now;
+        
+        // Reset bộ đếm lỗi khi có kết quả thành công
+        setApiErrorCount(0);
     }, []);
 
     const processFrame = useCallback(async () => {
         if (!isWebcamActive || isProcessing) return;
-
+    
+        // Kiểm tra cấu hình API
+        if (!apiConfig.url || !apiConfig.endpoint) {
+            setError("Vui lòng cấu hình URL và endpoint API");
+            return;
+        }
+    
         setIsProcessing(true);
         const video = videoRef.current;
         const canvas = canvasRef.current;
-
+    
         if (video && canvas) {
             const context = canvas.getContext('2d');
             canvas.width = 320;
             canvas.height = 240;
             context.drawImage(video, 0, 0, canvas.width, canvas.height);
-
+    
             try {
                 const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.5));
                 const formData = new FormData();
                 formData.append('file', blob, 'frame.jpg');
-
-                const response = await axios.post('/api/detect-face-realtime', formData, {
-                    headers: { 'Content-Type': 'multipart/form-data' }
+    
+                // Sử dụng cấu hình API từ state
+                const apiUrl = apiConfig.url.trim();
+                const apiEndpoint = apiConfig.endpoint.trim();
+                
+                console.log(`Gửi request đến: ${apiUrl}${apiEndpoint}`);
+                
+                // Thêm timeout cho request API
+                const response = await axios.post(`${apiUrl}${apiEndpoint}`, formData, {
+                    headers: { 'Content-Type': 'multipart/form-data' },
+                    timeout: apiTimeout
                 });
-
-                drawResults(response.data);
+    
+                // Kiểm tra cấu trúc response
+                if (response.data && response.status === 200) {
+                    drawResults(response.data);
+                } else {
+                    console.warn("Phản hồi API không hợp lệ:", response);
+                    throw new Error("Phản hồi API không hợp lệ");
+                }
             } catch (error) {
-                console.error('Error processing frame:', error);
-                if (error.code !== 'ECONNABORTED') {
-                    setError(error.response?.data?.detail || "Lỗi khi xử lý frame");
+                console.error('Lỗi khi xử lý frame:', error);
+                
+                // Tăng bộ đếm lỗi
+                const newErrorCount = apiErrorCount + 1;
+                setApiErrorCount(newErrorCount);
+                
+                // Chỉ hiển thị lỗi nếu vượt quá số lần thử lại
+                if (newErrorCount > maxRetries) {
+                    let errorMessage = "Lỗi khi xử lý frame";
+                    
+                    if (error.code === 'ECONNABORTED') {
+                        errorMessage = "Kết nối API bị timeout, vui lòng kiểm tra kết nối mạng hoặc máy chủ";
+                    } else if (error.response) {
+                        // Lỗi từ server
+                        errorMessage = `Lỗi từ máy chủ (${error.response.status}): ${error.response.data?.detail || "Không có thông tin chi tiết"}`;
+                    } else if (error.request) {
+                        // Không nhận được phản hồi
+                        errorMessage = "Không thể kết nối đến máy chủ, vui lòng kiểm tra kết nối mạng";
+                    }
+                    
+                    setError(errorMessage);
                 }
             } finally {
                 setIsProcessing(false);
             }
         }
-    }, [isWebcamActive, isProcessing, drawResults]);
+    }, [isWebcamActive, isProcessing, drawResults, apiErrorCount, maxRetries, apiConfig.url, apiConfig.endpoint]);
 
     useEffect(() => {
         let animationFrameId;
@@ -220,7 +288,44 @@ const RealtimeFaceDetection = () => {
                 )}
             </div>
 
-            {error && <div className="error-message"><p>{error}</p></div>}
+            {error && (
+                <div className="error-message">
+                    <p>{error}</p>
+                    <div className="error-actions">
+                        <button 
+                            className="retry-button" 
+                            onClick={() => {
+                                setError(null);
+                                setApiErrorCount(0);
+                            }}
+                        >
+                            Thử lại
+                        </button>
+                    </div>
+                </div>
+            )}
+            
+            {/* <div className="api-config">
+                <h3>Cấu hình API</h3>
+                <div className="form-group">
+                    <label>URL máy chủ:</label>
+                    <input 
+                        type="text" 
+                        value={apiConfig.url} 
+                        onChange={(e) => setApiConfig({...apiConfig, url: e.target.value})}
+                        placeholder="http://localhost:8000"
+                    />
+                </div>
+                <div className="form-group">
+                    <label>Endpoint:</label>
+                    <input 
+                        type="text" 
+                        value={apiConfig.endpoint} 
+                        onChange={(e) => setApiConfig({...apiConfig, endpoint: e.target.value})}
+                        placeholder="/api/face-detection"
+                    />
+                </div>
+            </div> */}
         </div>
     );
 };
