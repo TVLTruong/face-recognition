@@ -7,7 +7,7 @@ certifi==2025.4.26
 charset-normalizer==3.4.2
 click==8.1.8
 colorama==0.4.6
-coloredlogs @ file:///home/conda/feedstock_root/build_artifacts/coloredlogs_1733927977068/work
+coloredlogs
 contourpy==1.3.0
 cycler==0.12.1
 Cython==3.0.12
@@ -15,10 +15,10 @@ easydict==1.13
 eval_type_backport==0.2.2
 exceptiongroup==1.2.2
 fastapi==0.115.12
-flatbuffers @ file:///home/conda/feedstock_root/build_artifacts/python-flatbuffers_1739279199749/work
+flatbuffers
 fonttools==4.57.0
 h11==0.16.0
-humanfriendly @ file:///D:/bld/humanfriendly_1733927963288/work
+humanfriendly
 idna==3.10
 imageio==2.37.0
 importlib_resources==6.5.2
@@ -27,21 +27,21 @@ joblib==1.5.0
 kiwisolver==1.4.7
 lazy_loader==0.4
 matplotlib==3.9.4
-mpmath @ file:///home/conda/feedstock_root/build_artifacts/mpmath_1733302684489/work
+mpmath
 networkx==3.2.1
-numpy @ file:///D:/bld/numpy_1732314314278/work/dist/numpy-2.0.2-cp39-cp39-win_amd64.whl#sha256=8824ea87142626db7bbf79bdbcbd5b3a2fd77d7570bd62b4f705100e42b651e1
+numpy
 onnx==1.17.0
-onnxruntime-gpu @ file:///C:/bld/onnxruntime_1730059904151/work/build-ci/Release/dist/onnxruntime_gpu-1.19.2-cp39-cp39-win_amd64.whl#sha256=fcbe6d02bc1e63b84761dac5bd574b286f71782e27f4b40a174205d90901579c
+onnxruntime-gpu
 opencv-python==4.11.0.86
 opencv-python-headless==4.11.0.86
-packaging @ file:///home/conda/feedstock_root/build_artifacts/bld/rattler-build_packaging_1745345660/work
+packaging
 pillow==11.2.1
 prettytable==3.16.0
-protobuf @ file:///D:/bld/protobuf_1741124607566/work/bazel-bin/python/dist/protobuf-5.29.3-cp39-abi3-win_amd64.whl#sha256=7d028c041cbaedc78806e69028de43d3f7e4dc5d4e924785c3e634a1b2ad9180
+protobuf
 pydantic==2.11.4
 pydantic_core==2.33.2
 pyparsing==3.2.3
-pyreadline3 @ file:///D:/bld/pyreadline3_1731584342649/work
+pyreadline3
 python-dateutil==2.9.0.post0
 python-multipart==0.0.20
 PyYAML==6.0.2
@@ -54,7 +54,7 @@ six==1.17.0
 sniffio==1.3.1
 starlette==0.46.2
 stringzilla==3.12.5
-sympy @ file:///home/conda/feedstock_root/build_artifacts/sympy_1745946057943/work
+sympy
 threadpoolctl==3.6.0
 tifffile==2024.8.30
 tqdm==4.67.1
