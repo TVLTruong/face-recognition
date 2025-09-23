@@ -3,14 +3,13 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 import numpy as np
 import cv2
-import insightface
 from insightface.app import FaceAnalysis
 from scipy.spatial.distance import cosine
 from concurrent.futures import ThreadPoolExecutor
-import asyncio
-import hashlib
-import time
-import os
+import logging
+logging.basicConfig(level=logging.INFO)
+from fastapi.responses import StreamingResponse
+import cv2
 
 app = FastAPI()
 
@@ -24,25 +23,13 @@ app.add_middleware(
 )
 
 # GPU nếu có
-face_analyzer = FaceAnalysis(providers=['CUDAExecutionProvider', 'CPUExecutionProvider'])
+# face_analyzer = FaceAnalysis(providers=['CUDAExecutionProvider', 'CPUExecutionProvider'])
+face_analyzer = FaceAnalysis(providers=['CUDAExecutionProvider'], download=True)
 face_analyzer.prepare(ctx_id=0, det_size=(640, 640))
 
 # Load embeddings và tên
 USER_EMBEDDINGS = np.load('models/face_vectors.npy', allow_pickle=True)
-USER_NAMES = ["Trường", "Vinh"]
-
-# Thread executor để không block FastAPI event loop
-executor = ThreadPoolExecutor()
-
-# Bộ nhớ cache tạm thời để tránh xử lý ảnh giống nhau
-last_img_hash = None
-last_result = None
-
-def hash_image(image_bytes: bytes) -> str:
-    return hashlib.sha256(image_bytes).hexdigest()
-
-def detect_faces_sync(img: np.ndarray):
-    return face_analyzer.get(img)
+USER_NAMES = ["Truong", "Vinh"]
 
 def recognize_faces(faces):
     result = []
@@ -53,7 +40,7 @@ def recognize_faces(faces):
         max_score_idx = np.argmax(cosine_scores)
         max_score = cosine_scores[max_score_idx]
         result.append({
-            "name": USER_NAMES[max_score_idx] if max_score > 0.5 else "Không xác định",
+            "name": USER_NAMES[max_score_idx] if max_score > 0.4 else "Unknown",
             "bbox": bbox,
             "confidence": float(max_score),
             "cosine_scores": [float(s) for s in cosine_scores]
@@ -64,41 +51,47 @@ def recognize_faces(faces):
 def read_root():
     return {"message": "Hệ thống nhận diện khuôn mặt đang hoạt động"}
 
-@app.post("/detect-face-realtime")
-async def detect_face_realtime(file: UploadFile = File(...)):
-    global last_img_hash, last_result
+def gen_frames():  
+    cap = cv2.VideoCapture(0)
+    if not cap.isOpened():
+        raise RuntimeError("Không mở được webcam")
 
-    try:
-        start_time = time.time()
-        contents = await file.read()
-        img_hash = hash_image(contents)
+    while True:
+        success, frame = cap.read()
+        if not success:
+            break
 
-        if img_hash == last_img_hash and last_result is not None:
-            return last_result
+        # Resize (optional)
+        frame = cv2.resize(frame, (640, 480))
 
-        nparr = np.frombuffer(contents, np.uint8)
-        img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
-        if img is None:
-            raise HTTPException(status_code=400, detail="Không thể đọc hình ảnh")
-
-        # Gọi xử lý khuôn mặt ở thread pool
-        faces = await asyncio.get_event_loop().run_in_executor(executor, detect_faces_sync, img)
+        # Detect faces
+        faces = face_analyzer.get(frame)
         results = recognize_faces(faces)
 
-        response = {
-            "faces": results,
-            "num_faces": len(results),
-            "processing_time": round(time.time() - start_time, 3)
-        }
+        # Vẽ bounding box và tên
+        for res in results:
+            bbox = res['bbox']
+            name = res['name']
+            cv2.rectangle(frame, (bbox[0], bbox[1]), (bbox[2], bbox[3]), (0, 255, 0), 2)
+            cv2.putText(frame, name, (bbox[0], bbox[1] - 10),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 255, 0), 2)
 
-        # Cache ảnh và kết quả cuối
-        last_img_hash = img_hash
-        last_result = response
-        return response
+        # Encode frame as JPEG
+        ret, buffer = cv2.imencode('.jpg', frame)
+        frame_bytes = buffer.tobytes()
 
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Lỗi xử lý: {str(e)}")
+        # MJPEG stream
+        yield (b'--frame\r\n'
+               b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n')
+
+    cap.release()
+
+@app.get("/video-feed")
+def video_feed():
+    return StreamingResponse(gen_frames(), media_type='multipart/x-mixed-replace; boundary=frame')
+
 
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run("app:app", host="0.0.0.0", port=8000, reload=True)
+

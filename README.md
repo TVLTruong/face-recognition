@@ -48,7 +48,7 @@ npm install
 1. Đảm bảo bạn đang ở trong thư mục backend và môi trường ảo đã được kích hoạt
 2. Chạy server với Gunicorn:
 ```bash
-unicorn app:app --host 0.0.0.0 --port 8000 --reload
+uvicorn app:app --host 0.0.0.0 --port 8000 --reload
 ```
 Server sẽ chạy tại `http://localhost:8000`
 
